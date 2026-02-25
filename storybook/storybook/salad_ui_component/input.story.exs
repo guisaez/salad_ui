@@ -2,8 +2,6 @@ defmodule Storybook.SaladUIComponents.Input do
   @moduledoc false
   use PhoenixStorybook.Story, :component
 
-  alias SaladStorybookWeb.SaladUIComponents
-
   def function, do: &SaladUI.Input.input/1
   def imports, do: [{SaladStorybookWeb.CoreComponents, [simple_form: 1]}]
 

@@ -42,8 +42,9 @@ defmodule SaladStorybookWeb do
         formats: [:html, :json],
         layouts: [html: SaladStorybookWeb.Layouts]
 
+      use Gettext, backend: SaladStorybook.Gettext
+
       import Plug.Conn
-      import SaladStorybookWeb.Gettext
 
       unquote(verified_routes())
     end

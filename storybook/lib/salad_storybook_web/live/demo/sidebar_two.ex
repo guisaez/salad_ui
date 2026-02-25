@@ -185,9 +185,7 @@ defmodule SaladStorybookWeb.Demo.SidebarTwo do
       </.sidebar>
       <.sidebar_inset>
         <header class="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <.sidebar_trigger target="main-sidebar" class="-ml-1">
-            <Lucideicons.panel_left class="w-4 h-4" />
-          </.sidebar_trigger>
+          <.sidebar_trigger target="main-sidebar" class="-ml-1" />
           <.separator orientation="vertical" class="mr-2 h-4" />
           <.breadcrumb>
             <.breadcrumb_list>
@@ -211,7 +209,7 @@ defmodule SaladStorybookWeb.Demo.SidebarTwo do
             <div class="aspect-video rounded-xl bg-muted/50"></div>
             <div class="aspect-video rounded-xl bg-muted/50"></div>
           </div>
-          <div class="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min"></div>
+          <div class="min-h-screen flex-1 rounded-xl bg-muted/50 md:min-h-min"></div>
         </div>
       </.sidebar_inset>
     </.sidebar_provider>
