@@ -15,7 +15,8 @@ defmodule SaladUI.CollapsibleTest do
         """)
 
       assert html =~ ~s(id="test-collapsible")
-      assert html =~ ~s(phx-toggle-collapsible)
+      assert html =~ ~s(phx-hook="SaladUI")
+      assert html =~ ~s(data-component="collapsible")
       assert html =~ "Test Content"
     end
 
@@ -29,14 +30,14 @@ defmodule SaladUI.CollapsibleTest do
         </.collapsible>
         """)
 
-      for class <- ~w(inline-block relative custom-class) do
+      for class <- ~w(relative custom-class) do
         assert html =~ class
       end
     end
   end
 
   describe "collapsible_trigger/1" do
-    test "renders trigger with click handler" do
+    test "renders trigger" do
       assigns = %{}
 
       html =
@@ -48,7 +49,8 @@ defmodule SaladUI.CollapsibleTest do
         </.collapsible>
         """)
 
-      assert html =~ "test-collapsible"
+      assert html =~ "data-part=\"trigger\""
+      assert html =~ "data-action=\"toggle\""
       assert html =~ "Click me"
     end
 
@@ -62,7 +64,7 @@ defmodule SaladUI.CollapsibleTest do
         </.collapsible_trigger>
         """)
 
-      assert html =~ ~s(class="custom-trigger-class")
+      assert html =~ ~s(class="cursor-pointer custom-trigger-class")
     end
   end
 
@@ -77,10 +79,9 @@ defmodule SaladUI.CollapsibleTest do
         </.collapsible_content>
         """)
 
-      for class <- ~w(collapsible-content hidden transition-all duration-200 ease-in-out) do
-        assert html =~ class
-      end
-
+      assert html =~ "data-part=\"content\""
+      assert html =~ "hidden"
+      assert html =~ "transition-all duration-200 ease-in-out"
       assert html =~ "Hidden content"
     end
 
@@ -112,32 +113,13 @@ defmodule SaladUI.CollapsibleTest do
     end
   end
 
-  describe "toggle_collapsible/2" do
-    test "returns JavaScript commands for toggling content" do
-      js = toggle_collapsible(%Phoenix.LiveView.JS{}, "test-collapsible")
-
-      assert js.ops == [
-               [
-                 "toggle",
-                 %{
-                   to: "#test-collapsible .collapsible-content",
-                   ins: [["ease-out", "duration-200"], ["opacity-0"], ["opacity-100"]],
-                   outs: [["ease-out"], ["opacity-100"], ["opacity-70"]],
-                   time: 200
-                 }
-               ],
-               ["toggle_attr", %{attr: ["data-state", "open", "closed"], to: "#test-collapsible"}]
-             ]
-    end
-  end
-
   test "integration: renders complete collapsible with trigger and content" do
     assigns = %{}
 
     html =
       rendered_to_string(~H"""
-      <.collapsible :let={builder} id="test-collapsible" open={false}>
-        <.collapsible_trigger builder={builder}>
+      <.collapsible id="test-collapsible" open={false}>
+        <.collapsible_trigger>
           <button>Toggle</button>
         </.collapsible_trigger>
         <.collapsible_content>
@@ -148,7 +130,7 @@ defmodule SaladUI.CollapsibleTest do
 
     assert html =~ "Toggle"
     assert html =~ "Hidden Content"
-    assert html =~ "collapsible-content"
-    assert html =~ ~s(phx-toggle-collapsible)
+    assert html =~ "data-part=\"content\""
+    assert html =~ ~s(phx-hook="SaladUI")
   end
 end

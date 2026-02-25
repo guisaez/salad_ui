@@ -6,6 +6,8 @@ defmodule SaladUI.DialogTest do
   import SaladUI.Input
   import SaladUI.Label
 
+  alias Phoenix.LiveView.JS
+
   describe "Test Dialog" do
     test "It renders dialog header correctly" do
       assigns = %{}
@@ -80,44 +82,47 @@ defmodule SaladUI.DialogTest do
 
       html =
         rendered_to_string(~H"""
-        <.button phx-click={show_modal("my-modal")}>
+        <.button phx-click={%JS{} |> SaladUI.JS.dispatch_command("open", to: "#my-modal")}>
           Open modal
         </.button>
 
-        <.dialog id="my-modal" on_cancel={Phoenix.LiveView.JS.navigate("")} class="w-[700px]">
-          <.dialog_header>
-            <.dialog_title>Edit profile</.dialog_title>
+        <.dialog id="my-modal">
+          <.dialog_content class="w-[700px]">
+            <.dialog_header>
+              <.dialog_title>Edit profile</.dialog_title>
 
-            <.dialog_description>
-              Make changes to your profile here click save when you're done
-            </.dialog_description>
-          </.dialog_header>
+              <.dialog_description>
+                Make changes to your profile here click save when you're done
+              </.dialog_description>
+            </.dialog_header>
 
-          <div class="grid gap-4 py-4">
-            <div class="grid grid-cols-4 items-center gap-4">
-              <.label html-for="name" class="text-right">
-                Name
-              </.label>
-              <.input id="name" value="Dzung Nguyen" class="col-span-3" />
+            <div class="grid gap-4 py-4">
+              <div class="grid grid-cols-4 items-center gap-4">
+                <.label html-for="name" class="text-right">
+                  Name
+                </.label>
+                <.input id="name" value="Dzung Nguyen" class="col-span-3" />
+              </div>
+
+              <div class="grid grid-cols-4 items-center gap-4">
+                <.label html-for="username" class="text-right">
+                  Username
+                </.label>
+                <.input id="username" value="@bluzky" class="col-span-3" />
+              </div>
             </div>
 
-            <div class="grid grid-cols-4 items-center gap-4">
-              <.label html-for="username" class="text-right">
-                Username
-              </.label>
-              <.input id="username" value="@bluzky" class="col-span-3" />
-            </div>
-          </div>
-
-          <.dialog_footer>
-            <.button type="submit">save changes</.button>
-          </.dialog_footer>
+            <.dialog_footer>
+              <.button type="submit">save changes</.button>
+            </.dialog_footer>
+          </.dialog_content>
         </.dialog>
         """)
 
       assert html =~ "Edit profile"
-      assert html =~ "save changes\n<\/button>"
+      assert html =~ "save changes"
       assert html =~ "Make changes to your profile here click save when you're done"
     end
   end
 end
+

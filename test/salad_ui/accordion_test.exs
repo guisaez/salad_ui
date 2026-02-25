@@ -11,25 +11,25 @@ defmodule SaladUI.AccordionTest do
 
     html =
       ~H"""
-      <.accordion>
-        <.accordion_item>
-          <.accordion_trigger group="exclusive">
+      <.accordion id="my-accordion">
+        <.accordion_item value="item-1">
+          <.accordion_trigger>
             Is it accessible?
           </.accordion_trigger>
           <.accordion_content>
             Yes. It adheres to the WAI-ARIA design pattern.
           </.accordion_content>
         </.accordion_item>
-        <.accordion_item>
-          <.accordion_trigger group="exclusive">
+        <.accordion_item value="item-2">
+          <.accordion_trigger>
             Is it styled?
           </.accordion_trigger>
           <.accordion_content>
             Yes. It comes with default styles that matches the other components' aesthetic.
           </.accordion_content>
         </.accordion_item>
-        <.accordion_item>
-          <.accordion_trigger group="exclusive">
+        <.accordion_item value="item-3">
+          <.accordion_trigger>
             Is it animated?
           </.accordion_trigger>
           <.accordion_content>
@@ -42,10 +42,10 @@ defmodule SaladUI.AccordionTest do
       |> clean_string()
 
     assert html =~
-             "<div class=\"\">"
+             ~s(id="my-accordion")
 
     assert html =~
-             "<div class=\"border-b\">"
+             ~s(data-value="item-1")
 
     assert html =~
              "Is it accessible?"
@@ -70,11 +70,13 @@ defmodule SaladUI.AccordionTest do
     test "renders the accordion container with the provided name" do
       html =
         render_component(&accordion/1, %{
+          id: "my-accordion",
           class: "custom-class",
           inner_block: []
         })
 
-      assert html =~ ~s(<div class="custom-class">)
+      assert html =~ ~s(id="my-accordion")
+      assert html =~ ~s(class="w-full custom-class")
     end
   end
 
@@ -82,27 +84,26 @@ defmodule SaladUI.AccordionTest do
     test "renders the accordion item with the provided class" do
       html =
         render_component(&accordion_item/1, %{
+          value: "item-1",
           class: "custom-class",
           inner_block: []
         })
 
-      assert html =~ ~s(<div class="border-b custom-class">)
+      assert html =~ ~s(data-value="item-1")
+      assert html =~ ~s(class="border-b border-border custom-class")
     end
   end
 
   describe "accordion_trigger/1" do
-    test "renders the accordion trigger with the provided group" do
+    test "renders the accordion trigger" do
       html =
         render_component(&accordion_trigger/1, %{
-          group: "my-group",
           class: "custom-class",
           inner_block: []
         })
 
-      assert html =~ ~s(name="my-group")
-
       for class <-
-            ~w(flex py-4 transition-all items-center justify-between flex-1 font-medium hover:underline custom-class) do
+            ~w(flex w-full justify-between py-4 font-medium transition-all hover:underline text-sm custom-class) do
         assert html =~ class
       end
     end
@@ -117,7 +118,7 @@ defmodule SaladUI.AccordionTest do
         })
 
       for class <-
-            ~w(text-sm overflow-hidden grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 peer-open/accordion:grid-rows-[1fr]) do
+            ~w(overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down) do
         assert html =~ class
       end
 
@@ -125,3 +126,4 @@ defmodule SaladUI.AccordionTest do
     end
   end
 end
+

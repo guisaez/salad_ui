@@ -171,16 +171,16 @@ defmodule SaladUI.Form do
   def form_message(assigns) do
     assigns =
       assigns
-      |> assign(error: has_error?(assigns[:field]) || not Enum.empty?(assigns[:errors]))
+      |> assign(error: has_error?(assigns[:field]) || not Enum.empty?(assigns[:errors] || []))
       |> assign(:message, List.first(assigns[:errors] || field_errors(assigns[:field])))
 
     ~H"""
     <p
-      :if={(msg = render_slot(@inner_block)) || not is_nil(@error)}
-      class={classes(["text-sm font-medium", @error && "text-destructive", @class])}
+      :if={@error || render_slot(@inner_block)}
+      class={classes(["text-sm font-medium text-destructive", @class])}
       {@rest}
     >
-      {msg || @message}
+      {render_slot(@inner_block) || @message}
     </p>
     """
   end

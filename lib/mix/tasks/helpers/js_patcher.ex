@@ -31,22 +31,29 @@ defmodule SaladUI.Patcher.JSPatcher do
     The modified JavaScript content with the content appended after the last import
   """
   def append_after_last_import(js_content, content_to_append) do
-    # Find all import statements - handle both semicolon and non-semicolon imports
-    import_regex = ~r/(import\s+.*?(?:;|\n|$))/
-    imports = Regex.scan(import_regex, js_content)
+    # Find all import statements
+    import_regex = ~r/^import\s+.*?(?:;|\n|$)/m
+    matches = Regex.scan(import_regex, js_content, return: :index)
 
-    case imports do
+    case matches do
       [] ->
-        # No imports found, return original content
-        js_content
+        # No imports found, prepend to the top of the file
+        content_to_append <> "\n" <> js_content
 
       _ ->
-        # Get the last import statement
-        last_import = imports |> List.last() |> List.first()
+        # Get the position after the last import statement
+        [{start_pos, length}] = List.last(matches)
+        insert_pos = start_pos + length
 
-        # Split the string at the last import and reconstruct with appended content
-        [before_last_import, after_last_import] = String.split(js_content, last_import, parts: 2)
-        before_last_import <> last_import <> content_to_append <> after_last_import
+        {before_last, after_last} = String.split_at(js_content, insert_pos)
+
+        # If before_last doesn't end with a newline, add one.
+        # Otherwise, just append content_to_append.
+        if String.ends_with?(before_last, "\n") do
+          before_last <> content_to_append <> "\n" <> after_last
+        else
+          before_last <> "\n" <> content_to_append <> "\n" <> after_last
+        end
     end
   end
 
@@ -62,18 +69,24 @@ defmodule SaladUI.Patcher.JSPatcher do
     The modified JavaScript content with the new hooks added
   """
   def add_hook(js_content, hooks) do
-    # First, extract the entire LiveSocket block
+    # Regex to find the LiveSocket initialization with its configuration object
+    # Support const, let, var and flexible arguments before the config object
     liveSocket_regex =
-      ~r/(let\s+liveSocket\s*=\s*new\s+LiveSocket\s*\(\s*"[^"]*"\s*,\s*Socket\s*,\s*\{)([\s\S]*?)(\}\s*\))/
+      ~r/((?:let|const|var)\s+liveSocket\s*=\s*new\s+LiveSocket\s*\(.*?,.*?,.*\{)([\s\S]*?)(\}\s*\))/
 
-    case Regex.run(liveSocket_regex, js_content) do
+    case Regex.run(liveSocket_regex, js_content, return: :index) do
       nil ->
-        # LiveSocket initialization not found
-        js_content
+        # LiveSocket initialization with config object not found, try to match without config object
+        add_config_to_livesocket(js_content, hooks)
 
-      [whole_match, before_params, params, after_params] ->
+      [{match_start, match_len}, {before_start, before_len}, {params_start, params_len}, {after_start, after_len}] ->
+        whole_match = String.slice(js_content, match_start, match_len)
+        before_params = String.slice(js_content, before_start, before_len)
+        params = String.slice(js_content, params_start, params_len)
+        after_params = String.slice(js_content, after_start, after_len)
+
         # Check if hooks already exist in the params
-        has_hooks = String.match?(params, ~r/hooks\s*:/)
+        has_hooks = String.match?(params, ~r/\bhooks\s*:/)
 
         if has_hooks do
           # Case 1: Hooks already exist, add to them
@@ -85,17 +98,41 @@ defmodule SaladUI.Patcher.JSPatcher do
     end
   end
 
+  # Try to add config object if LiveSocket initialization only has two arguments
+  defp add_config_to_livesocket(js_content, hooks) do
+    # Match: new LiveSocket("/live", Socket)
+    simple_livesocket_regex =
+      ~r/((?:let|const|var)\s+liveSocket\s*=\s*new\s+LiveSocket\s*\(.*?,.*?)(\)\s*;?)/
+
+    case Regex.run(simple_livesocket_regex, js_content, return: :index) do
+      nil ->
+        # No LiveSocket found at all
+        js_content
+
+      [{match_start, match_len}, {before_start, before_len}, {after_start, after_len}] ->
+        whole_match = String.slice(js_content, match_start, match_len)
+        before_closing = String.slice(js_content, before_start, before_len)
+        after_closing = String.slice(js_content, after_start, after_len)
+
+        new_livesocket = before_closing <> ", { hooks: { #{hooks} } }" <> after_closing
+        String.replace(js_content, whole_match, new_livesocket, global: false)
+    end
+  end
+
   # Updates existing hooks in the LiveSocket block
   defp update_existing_hooks(js_content, whole_match, params, new_hooks) do
     # Extract the existing hooks block
     hooks_regex = ~r/hooks\s*:\s*\{([\s\S]*?)\}/
 
-    case Regex.run(hooks_regex, params) do
+    case Regex.run(hooks_regex, params, return: :index) do
       nil ->
         # This shouldn't happen if we already detected hooks, but just in case
         js_content
 
-      [hooks_block, hooks_content] ->
+      [{hooks_block_start, hooks_block_len}, {hooks_content_start, hooks_content_len}] ->
+        hooks_block = String.slice(params, hooks_block_start, hooks_block_len)
+        hooks_content = String.slice(params, hooks_content_start, hooks_content_len)
+
         # Check if any of the new hooks already exist
         hook_names =
           new_hooks
@@ -104,10 +141,10 @@ defmodule SaladUI.Patcher.JSPatcher do
             hook |> String.trim() |> String.split(":") |> List.first() |> String.trim()
           end)
 
-        # Filter out hooks that already exist
+        # Filter out hooks that already exist using more robust regex
         existing_hooks =
           for hook_name <- hook_names,
-              Regex.match?(~r/#{hook_name}\s*:/, hooks_content),
+              Regex.match?(~r/\b#{hook_name}\s*:/, hooks_content),
               do: hook_name
 
         if length(existing_hooks) == length(hook_names) do
@@ -119,6 +156,7 @@ defmodule SaladUI.Patcher.JSPatcher do
             if String.trim(hooks_content) == "" do
               new_hooks
             else
+              # Use the existing formatting if possible
               "#{hooks_content},\n    #{new_hooks}"
             end
 
@@ -126,10 +164,10 @@ defmodule SaladUI.Patcher.JSPatcher do
           new_hooks_block = "hooks: {#{new_hooks_content}}"
 
           # Replace the old hooks block with the new one in the params
-          updated_params = String.replace(params, hooks_block, new_hooks_block)
+          updated_params = String.replace(params, hooks_block, new_hooks_block, global: false)
 
           # Replace the entire LiveSocket block
-          updated_match = String.replace(whole_match, params, updated_params)
+          updated_match = String.replace(whole_match, params, updated_params, global: false)
 
           # Update the JS content
           String.replace(js_content, whole_match, updated_match, global: false)
@@ -151,3 +189,4 @@ defmodule SaladUI.Patcher.JSPatcher do
     String.replace(js_content, whole_match, "#{before_params}#{new_params}#{after_params}", global: false)
   end
 end
+

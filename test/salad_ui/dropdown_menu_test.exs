@@ -19,7 +19,7 @@ defmodule SaladUI.DropdownMenuTest do
 
       assert html =~ "Click me"
 
-      for css_class <- ~w(dropdown-menu-trigger peer) do
+      for css_class <- ~w(data-part="trigger") do
         assert html =~ css_class
       end
     end
@@ -67,7 +67,7 @@ defmodule SaladUI.DropdownMenuTest do
         """)
 
       for css_class <-
-            ~w(z-50 animate-in peer-data-[state=closed]:fade-out-0 peer-data-[state=open]:fade-in-0 peer-data-[state=closed]:zoom-out-95 peer-data-[state=open]:zoom-in-95 peer-data-[side=bottom]:slide-in-from-top-2 peer-data-[side=left]:slide-in-from-right-2 peer-data-[side=right]:slide-in-from-left-2 peer-data-[side=top]:slide-in-from-bottom-2) do
+            ~w(z-50 animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2) do
         assert html =~ css_class
       end
     end
@@ -78,7 +78,7 @@ defmodule SaladUI.DropdownMenuTest do
       html =
         rendered_to_string(~H"""
         <div class="mt-24">
-          <.dropdown_menu>
+          <.dropdown_menu id="dropdown-menu">
             <.dropdown_menu_trigger>
               <.button variant="outline">Click me</.button>
             </.dropdown_menu_trigger>

@@ -13,7 +13,7 @@ defmodule SaladUI.ButtonTest do
         """)
 
       assert html =~ "Send!"
-      assert html =~ "<button class=\"inline-flex"
+      assert html =~ "<button class=\"phx-submit-loading:opacity-75 inline-flex"
 
       for class <-
             ~w(inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90) do

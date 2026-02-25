@@ -52,6 +52,8 @@ defmodule SaladUI.Dialog do
     default: nil,
     doc: "Handler for dialog closed event. Support both server event handler and JS command struct"
 
+  attr :rest, :global
+
   slot :inner_block, required: true
 
   def dialog(assigns) do
@@ -82,6 +84,7 @@ defmodule SaladUI.Dialog do
       data-event-mappings={@event_map}
       phx-hook="SaladUI"
       data-part="root"
+      {@rest}
     >
       {render_slot(@inner_block)}
     </div>
@@ -103,6 +106,7 @@ defmodule SaladUI.Dialog do
 
   attr :class, :string, default: nil
   slot :inner_block, required: true
+  attr :rest, :global
 
   def dialog_content(assigns) do
     ~H"""
@@ -120,6 +124,7 @@ defmodule SaladUI.Dialog do
             @class
           ])
         }
+        {@rest}
       >
         {render_slot(@inner_block)}
 
@@ -153,10 +158,11 @@ defmodule SaladUI.Dialog do
 
   attr :class, :string, default: nil
   slot :inner_block, required: true
+  attr :rest, :global
 
   def dialog_header(assigns) do
     ~H"""
-    <div class={classes(["flex flex-col space-y-1.5 text-center sm:text-left", @class])}>
+    <div class={classes(["flex flex-col space-y-1.5 text-center sm:text-left", @class])} {@rest}>
       {render_slot(@inner_block)}
     </div>
     """
@@ -164,10 +170,11 @@ defmodule SaladUI.Dialog do
 
   attr :class, :string, default: nil
   slot :inner_block, required: true
+  attr :rest, :global
 
   def dialog_title(assigns) do
     ~H"""
-    <h3 class={classes(["text-lg font-semibold leading-none tracking-tight", @class])}>
+    <h3 class={classes(["text-lg font-semibold leading-none tracking-tight", @class])} {@rest}>
       {render_slot(@inner_block)}
     </h3>
     """
@@ -175,10 +182,11 @@ defmodule SaladUI.Dialog do
 
   attr :class, :string, default: nil
   slot :inner_block, required: true
+  attr :rest, :global
 
   def dialog_description(assigns) do
     ~H"""
-    <p class={classes(["text-sm text-muted-foreground", @class])}>
+    <p class={classes(["text-sm text-muted-foreground", @class])} {@rest}>
       {render_slot(@inner_block)}
     </p>
     """
@@ -186,10 +194,14 @@ defmodule SaladUI.Dialog do
 
   attr :class, :string, default: nil
   slot :inner_block, required: true
+  attr :rest, :global
 
   def dialog_footer(assigns) do
     ~H"""
-    <div class={classes(["flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", @class])}>
+    <div
+      class={classes(["flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", @class])}
+      {@rest}
+    >
       {render_slot(@inner_block)}
     </div>
     """

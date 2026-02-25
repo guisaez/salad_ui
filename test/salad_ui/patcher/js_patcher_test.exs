@@ -3,54 +3,130 @@ defmodule SaladUI.Patcher.JSPatcherTest do
 
   alias SaladUI.Patcher.JSPatcher
 
-  @temp_dir "test/temp"
-  @js_file "#{@temp_dir}/app.js"
-  @code_to_add_file "#{@temp_dir}/code_to_add.js"
+  describe "append_after_last_import/2" do
+    test "prepends content when no imports exist" do
+      js_content = "const x = 1;"
+      content_to_add = "import 'my-lib';"
+      result = JSPatcher.append_after_last_import(js_content, content_to_add)
 
-  setup do
-    File.mkdir_p!(@temp_dir)
-    on_exit(fn -> File.rm_rf!(@temp_dir) end)
-  end
-
-  describe "Test JS patcher" do
-    test "patch/2 adds new code when JS file is empty" do
-      File.write!(@js_file, "")
-      File.write!(@code_to_add_file, "console.log('Hello, SaladUI!');")
-
-      JSPatcher.patch(@js_file, @code_to_add_file)
-
-      patched_content = File.read!(@js_file)
-      assert patched_content =~ "// Allows to execute JS commands from the server"
-      assert patched_content =~ "console.log('Hello, SaladUI!');"
+      assert result == content_to_add <> "\n" <> js_content
     end
 
-    test "patch/2 appends new code to existing content" do
-      initial_content = "const app = {};"
-      File.write!(@js_file, initial_content)
-      File.write!(@code_to_add_file, "console.log('Hello, SaladUI!');")
+    test "appends content after the last import" do
+      js_content = """
+      import { x } from 'lib1';
+      import { y } from 'lib2';
 
-      JSPatcher.patch(@js_file, @code_to_add_file)
-
-      patched_content = File.read!(@js_file)
-      assert patched_content =~ initial_content
-      assert patched_content =~ "// Allows to execute JS commands from the server"
-      assert patched_content =~ "console.log('Hello, SaladUI!');"
-    end
-
-    test "patch/2 doesn't duplicate code if it already exists" do
-      initial_content = """
-      const app = {};
-      // Allows to execute JS commands from the server
-      console.log('Hello, SaladUI!');
+      const a = 1;
       """
 
-      File.write!(@js_file, initial_content)
-      File.write!(@code_to_add_file, "console.log('Hello, SaladUI!');")
+      content_to_add = "import { z } from 'lib3';"
+      result = JSPatcher.append_after_last_import(js_content, content_to_add)
 
-      JSPatcher.patch(@js_file, @code_to_add_file)
+      assert result =~ "import { y } from 'lib2';\nimport { z } from 'lib3';"
+      assert result =~ "const a = 1;"
+    end
 
-      patched_content = File.read!(@js_file)
-      assert patched_content == initial_content
+    test "handles imports without semicolons" do
+      js_content = """
+      import { x } from 'lib1'
+      import { y } from 'lib2'
+
+      const a = 1
+      """
+
+      content_to_add = "import { z } from 'lib3'"
+      result = JSPatcher.append_after_last_import(js_content, content_to_add)
+
+      assert result =~ "import { y } from 'lib2'\nimport { z } from 'lib3'"
+    end
+  end
+
+  describe "add_hook/2" do
+    test "adds hooks to existing hooks object" do
+      js_content = """
+      let liveSocket = new LiveSocket("/live", Socket, {
+        params: {_csrf_token: csrfToken},
+        hooks: {
+          MyHook: MyHookHandler
+        }
+      })
+      """
+
+      new_hook = "SaladUI: SaladUI.SaladUIHook"
+      result = JSPatcher.add_hook(js_content, new_hook)
+
+      assert result =~ "MyHook: MyHookHandler"
+      assert result =~ "SaladUI: SaladUI.SaladUIHook"
+    end
+
+    test "creates hooks object if it doesn't exist but config exists" do
+      js_content = """
+      let liveSocket = new LiveSocket("/live", Socket, {
+        params: {_csrf_token: csrfToken}
+      })
+      """
+
+      new_hook = "SaladUI: SaladUI.SaladUIHook"
+      result = JSPatcher.add_hook(js_content, new_hook)
+
+      assert result =~ "params: {_csrf_token: csrfToken}"
+      assert result =~ "hooks: { SaladUI: SaladUI.SaladUIHook }"
+    end
+
+    test "adds config and hooks if config is missing (only 2 arguments)" do
+      js_content = """
+      let liveSocket = new LiveSocket("/live", Socket)
+      """
+
+      new_hook = "SaladUI: SaladUI.SaladUIHook"
+      result = JSPatcher.add_hook(js_content, new_hook)
+
+      assert result =~ "new LiveSocket(\"/live\", Socket, { hooks: { SaladUI: SaladUI.SaladUIHook } })"
+    end
+
+    test "supports const for liveSocket initialization" do
+      js_content = """
+      const liveSocket = new LiveSocket("/live", Socket, { params: {_csrf_token: csrfToken} })
+      """
+
+      new_hook = "SaladUI: SaladUI.SaladUIHook"
+      result = JSPatcher.add_hook(js_content, new_hook)
+
+      assert result =~ "const liveSocket"
+      assert result =~ "hooks: { SaladUI: SaladUI.SaladUIHook }"
+    end
+
+    test "doesn't duplicate existing hook" do
+      js_content = """
+      let liveSocket = new LiveSocket("/live", Socket, {
+        hooks: {
+          SaladUI: SaladUI.SaladUIHook
+        }
+      })
+      """
+
+      new_hook = "SaladUI: SaladUI.SaladUIHook"
+      result = JSPatcher.add_hook(js_content, new_hook)
+
+      assert result == js_content
+    end
+
+    test "robustly checks for existing hook names to avoid partial matches" do
+      js_content = """
+      let liveSocket = new LiveSocket("/live", Socket, {
+        hooks: {
+          MySaladUI: MySaladUIHook
+        }
+      })
+      """
+
+      # "SaladUI" should be added because "MySaladUI" is different
+      new_hook = "SaladUI: SaladUI.SaladUIHook"
+      result = JSPatcher.add_hook(js_content, new_hook)
+
+      assert result =~ "MySaladUI: MySaladUIHook"
+      assert result =~ "SaladUI: SaladUI.SaladUIHook"
     end
   end
 end

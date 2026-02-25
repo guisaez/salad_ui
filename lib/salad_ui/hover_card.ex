@@ -134,7 +134,7 @@ defmodule SaladUI.HoverCard do
       data-align={@align}
       data-side-offset={@side_offset}
       data-align-offset={@align_offset}
-      style="postion: fixed;"
+      style="position: fixed;"
       class="z-50"
       hidden
       {@rest}
