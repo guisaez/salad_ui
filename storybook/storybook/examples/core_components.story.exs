@@ -4,8 +4,6 @@ defmodule Storybook.Examples.CoreComponents do
 
   import SaladStorybookWeb.CoreComponents
 
-  alias Phoenix.LiveView.JS
-
   def doc do
     "An example of what you can achieve with Phoenix core components."
   end
