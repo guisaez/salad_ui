@@ -74,14 +74,14 @@ end
 
 ### Method 2: Local Installation (Customizable)
 
-For full customization with local component files:
+For full customization with local component files. This copies all component source code and JavaScript assets into your project.
 
 ```bash
-# Default installation
+# Default installation (Prefix defaults to MyAppUI)
 mix salad.install
 
-# With custom prefix and color scheme
-mix salad.install --prefix MyUI --color-scheme slate
+# Recommended for idiomatic module names
+mix salad.install --prefix MyAppWeb.Components.UI --color-scheme slate
 ```
 
 This copies all component files to your project under `lib/my_app_web/components/ui/` where you can customize them:
@@ -89,10 +89,11 @@ This copies all component files to your project under `lib/my_app_web/components
 ```elixir
 defmodule MyAppWeb.PageLive do
   use MyAppWeb, :live_view
+  # Use the prefix you specified (or the default MyAppUI)
   import MyAppWeb.Components.UI.Button
   import MyAppWeb.Components.UI.Dialog
 
-  def render(_) do
+  def render(assigns) do
     ~H"""
     <.button>Click me</.button>
     <.dialog id="my-dialog">

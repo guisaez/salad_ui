@@ -73,14 +73,17 @@ export default MyComponent;
 
 ## Step 3: Add Import
 
-In `lib/salad_ui.ex`:
+If you used `mix salad.setup` or `mix salad.install`, core components are already registered. For new custom components:
+
+In your component module (e.g., `lib/salad_ui.ex` or your local `ui.ex`):
 ```elixir
 import SaladUI.MyComponent
 ```
 
-In `assets/js/app.js`:
+In your `assets/js/app.js`:
 ```javascript
-import "./salad_ui/components/my-component";
+// Add to your existing SaladUI imports
+import "./salad_ui/components/my-component.js"; // or local path if using salad.install
 ```
 
 ## Step 4: Use Component

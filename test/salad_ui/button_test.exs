@@ -45,7 +45,8 @@ defmodule SaladUI.ButtonTest do
       assert html =~ "phx-click=\"go\""
       assert html =~ "Destructive act"
 
-      for class <- ~w(bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90) do
+      for class <-
+            ~w(bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90) do
         assert html =~ class
       end
     end
@@ -61,7 +62,8 @@ defmodule SaladUI.ButtonTest do
       assert html =~ "phx-click=\"go\""
       assert html =~ "Outline act"
 
-      for class <- ~w(border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground) do
+      for class <-
+            ~w(border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground) do
         assert html =~ class
       end
     end
@@ -77,7 +79,7 @@ defmodule SaladUI.ButtonTest do
       assert html =~ "phx-click=\"go\""
       assert html =~ "secondary act"
 
-      for class <- ~w(bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80) do
+      for class <- ~w(bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80) do
         assert html =~ class
       end
     end

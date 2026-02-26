@@ -5,10 +5,9 @@ defmodule Mix.Tasks.Salad.Setup do
   This task configures the complete SaladUI development environment by:
 
   * Adding TwMerge.Cache to the application supervision tree
-  * Configuring CSS color scheme variables (default: gray)
-  * Copying SaladUI CSS files to assets/css/
-  * Patching Tailwind CSS configuration with SaladUI-specific settings
-  * Installing tailwindcss-animate plugin
+  * Configuring CSS color scheme variables (default: gray) in `assets/css/salad_ui.css`
+  * Copying SaladUI CSS files to `assets/css/`
+  * Installing `tailwind-animate` as a local vendor CSS file
   * Setting up JavaScript imports and LiveView hooks
 
   ## Usage
@@ -30,19 +29,18 @@ defmodule Mix.Tasks.Salad.Setup do
      CSS class merging functionality
 
   2. **CSS Setup**
-     - Copies salad_ui.css to assets/css/
-     - Adds color scheme variables to app.css
-     - Imports SaladUI styles into the main CSS file
+     - Copies `salad_ui.css` to `assets/css/`
+     - Adds color scheme variables to `salad_ui.css`
+     - Imports `salad_ui.css` into the main `app.css` file
 
-  3. **Tailwind Configuration**
-     - Patches tailwind.config.js with SaladUI-specific plugins
-     - Copies tailwind.colors.json with design tokens
-     - Adds @tailwindcss/typography and tailwindcss-animate plugins
+  3. **Tailwind v4 Integration**
+     - Uses `@import` to include `tailwind-animate` directly in `salad_ui.css`
+     - No manual `tailwind.config.js` patching required for v4
 
   4. **JavaScript Setup**
-     - Downloads and installs tailwindcss-animate
-     - Patches app.js to import SaladUI components and hooks
-     - Registers SaladUIHook with LiveView
+     - Downloads and installs `tailwind-animate` to `assets/vendor/`
+     - Patches `app.js` to import SaladUI components and hooks
+     - Registers `SaladUIHook` with LiveView
 
   ## After running this task
 
@@ -58,12 +56,10 @@ defmodule Mix.Tasks.Salad.Setup do
   ## Files modified
 
   * `lib/[app]/application.ex` - Adds TwMerge.Cache
-  * `assets/css/app.css` - Adds color scheme and imports
-  * `assets/css/salad_ui.css` - Created
-  * `assets/tailwind.config.js` - Updated with plugins and content paths
-  * `assets/tailwind.colors.json` - Created
+  * `assets/css/app.css` - Adds `@import "./salad_ui.css"`
+  * `assets/css/salad_ui.css` - Created and configured with color scheme and plugins
   * `assets/js/app.js` - Adds SaladUI imports and hooks
-  * `assets/vendor/tailwindcss-animate.js` - Downloaded
+  * `assets/vendor/tailwind-animate.css` - Downloaded
 
   ## Example
 
@@ -90,11 +86,8 @@ defmodule Mix.Tasks.Salad.Setup do
 
     igniter
     |> patch_tw_merge()
-    |> patch_css_color_scheme(color_scheme)
-    |> copy_salad_ui_css()
+    |> setup_css(color_scheme)
     |> patch_css_import_salad_ui()
-    |> patch_tailwind_config()
-    |> copy_tailwind_colors()
     |> install_tailwind_animate()
     |> patch_app_js()
   end
@@ -103,111 +96,116 @@ defmodule Mix.Tasks.Salad.Setup do
     Igniter.Project.Application.add_new_child(igniter, TwMerge.Cache)
   end
 
-  defp patch_css_color_scheme(igniter, color_scheme) do
-    css_file = "./assets/css/app.css"
-    content = File.read!(css_file)
+  @target_path_salad_ui_css "./assets/css/salad_ui.css"
 
-    IO.puts("Patching #{css_file}")
+  defp setup_css(igniter, color_scheme) do
+    # This is relative to the project that is calling the initialization.
+    source_file = assets_path("salad_ui.css")
+
+    IO.puts("Setting up #{@target_path_salad_ui_css} with color scheme #{color_scheme}")
 
     color_scheme_code = "colors/#{color_scheme}.css" |> assets_path() |> File.read!()
+    base_content = File.read!(source_file)
 
     new_base_layer = """
     @layer base {
       #{color_scheme_code}
-      * {
-        @apply border-border !important;
-      }
     }\n
     """
 
-    File.write!(css_file, content <> "\n\n" <> new_base_layer)
-    igniter
-  end
-
-  defp copy_salad_ui_css(igniter) do
-    source_file = assets_path("salad_ui.css")
-    target_file = "./assets/css/salad_ui.css"
-
-    Igniter.copy_template(igniter, source_file, target_file, [])
+    Igniter.create_new_file(
+      igniter,
+      @target_path_salad_ui_css,
+      base_content <> "\n\n" <> new_base_layer,
+      on_exists: :overwrite
+    )
   end
 
   defp patch_css_import_salad_ui(igniter) do
-    css_file = "./assets/css/app.css"
-    content = File.read!(css_file)
-    import_snippet = "@import \"./salad_ui.css\";\n"
+    import_snippet = "@import \"../css/salad_ui.css\";\n"
 
-    IO.puts("Patching #{css_file}")
-    IO.puts("Add:  #{import_snippet}")
+    Igniter.update_file(igniter, "./assets/css/app.css", fn source ->
+      content = Rewrite.Source.get(source, :content)
 
-    unless String.contains?(content, import_snippet) do
-      import_regex = ~r/(@import.*?;\n)/
-      imports = Regex.scan(import_regex, content)
+      if String.contains?(content, import_snippet) do
+        # Return the source-content as a string, even if no change is made
+        source
+      else
+        import_regex = ~r/(@import.*?;\n)/
+        imports = Regex.scan(import_regex, content)
 
-      updated_content =
-        case imports do
-          [] ->
-            # No imports found, return original content
-            import_snippet <> "\n" <> content
+        new_content =
+          case imports do
+            [] ->
+              import_snippet <> "\n" <> content
 
-          _ ->
-            # Get the last import statement
-            last_import = imports |> List.last() |> List.first()
+            _ ->
+              last_import = imports |> List.last() |> List.first()
+              [before, after_text] = String.split(content, last_import, parts: 2)
+              before <> last_import <> import_snippet <> after_text
+          end
 
-            # Replace only the last occurrence
-            # First, split the string at the last import
-            [before_last_import, after_last_import] = String.split(content, last_import, parts: 2)
-
-            # Reconstruct the string with the inserted content after the last import
-            before_last_import <> last_import <> import_snippet <> after_last_import
-        end
-
-      File.write(css_file, updated_content)
-    end
-
-    igniter
+        Rewrite.Source.update(source, :content, new_content)
+      end
+    end)
   end
 
-  defp copy_tailwind_colors(igniter) do
-    source_file = assets_path("tailwind.colors.json")
-    target_file = "./assets/tailwind.colors.json"
-
-    Igniter.copy_template(igniter, source_file, target_file, [])
-  end
-
-  defp patch_tailwind_config(igniter) do
-    tailwind_config_path = "./assets/tailwind.config.js"
-    SaladUI.Patcher.TailwindPatcher.patch(tailwind_config_path)
-
-    igniter
-  end
-
-  @default_tailwind_animate_version "1.0.7"
+  @default_tailwind_animate_version "0.2.10"
 
   defp install_tailwind_animate(igniter) do
     tag = @default_tailwind_animate_version
+    url = "https://unpkg.com/tailwind-animate@#{tag}/dist/tailwind-animate.css"
+    output_path = "assets/vendor/tailwind-animate.css"
 
-    Mix.shell().info("Downloading tailwindcss-animate.js v#{tag}")
-
-    url = "https://raw.githubusercontent.com/jamiebuilds/tailwindcss-animate/refs/tags/v#{tag}/index.js"
-    output_path = "assets/vendor/tailwindcss-animate.js"
+    Mix.shell().info("Downloading tailwind-animate.css v#{tag}")
 
     :inets.start()
     :ssl.start()
 
     case :httpc.request(:get, {url, []}, [], body_format: :binary) do
       {:ok, {{_version, 200, _reason_phrase}, _headers, body}} ->
-        # Write the body to file
-        File.write!(output_path, body)
-        :ok
+        import_line = "@import \"../vendor/tailwind-animate.css\";\n"
+
+        igniter
+        # Use Igniter to create the file. This handles directory creation
+        # and allows the user to see the new file in a --dry-run diff.
+        |> Igniter.create_new_file(output_path, body, on_exists: :overwrite)
+        |> Igniter.update_file(@target_path_salad_ui_css, fn source ->
+          # Extract the string content from the Rewrite.Source struct
+          content = Rewrite.Source.get(source, :content)
+
+          if String.contains?(content, import_line) do
+            # Return the original source struct to indicate no change
+            source
+          else
+            import_regex = ~r/(@import.*?;\n)/
+            imports = Regex.scan(import_regex, content)
+
+            case imports do
+              [] ->
+                import_line <> "\n" <> content
+
+              _ ->
+                last_import = imports |> List.last() |> List.first()
+                [before, after_text] = String.split(content, last_import, parts: 2)
+
+                Rewrite.Source.update(
+                  source,
+                  :content,
+                  before <> last_import <> import_line <> after_text
+                )
+            end
+          end
+        end)
 
       {:ok, {{_version, status_code, _reason_phrase}, _headers, _body}} ->
-        {:error, "Failed to download tailwindcss-animate with status #{status_code}"}
+        Mix.shell().error("Failed to download tailwind-animate: status #{status_code}")
+        igniter
 
       {:error, reason} ->
-        {:error, "Failed to download tailwindcss-animate.js: #{inspect(reason)}"}
+        Mix.shell().error("Failed to download tailwind-animate.css: #{inspect(reason)}")
+        igniter
     end
-
-    igniter
   end
 
   defp assets_path(directory) do
@@ -232,15 +230,22 @@ defmodule Mix.Tasks.Salad.Setup do
   """
   @js_hooks "SaladUI: SaladUI.SaladUIHook"
   defp patch_app_js(igniter) do
-    app_js_path = "./assets/js/app.js"
+    app_js_path = "assets/js/app.js"
 
-    js_content =
-      app_js_path
-      |> File.read!()
-      |> SaladUI.Patcher.JSPatcher.patch_js(@js_import, @js_hooks)
+    Igniter.update_file(igniter, app_js_path, fn source ->
+      # 1. Extract the string content from the struct
+      content = Rewrite.Source.get(source, :content)
 
-    File.write!(app_js_path, js_content)
+      # 2. Perform the patch
+      patched_content = SaladUI.Patcher.JSPatcher.patch_js(content, @js_import, @js_hooks)
 
-    igniter
+      # 3. If the content didn't change, return 'source' (the struct)
+      #    to avoid unnecessary Rewrite overhead. Otherwise return the new string.
+      if patched_content == content do
+        source
+      else
+        Rewrite.Source.update(source, :content, patched_content)
+      end
+    end)
   end
 end
