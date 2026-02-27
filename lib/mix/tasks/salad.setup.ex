@@ -122,7 +122,10 @@ defmodule Mix.Tasks.Salad.Setup do
   end
 
   defp patch_css_import_salad_ui(igniter) do
-    import_snippet = "@import \"../css/salad_ui.css\";\n"
+    import_snippet = """
+    @import "../css/salad_ui.css";
+    @source "../../deps/salad_ui/lib/salad_ui";
+    """
 
     Igniter.update_file(igniter, "./assets/css/app.css", fn source ->
       content = Rewrite.Source.get(source, :content)
